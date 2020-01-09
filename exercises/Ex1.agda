@@ -46,14 +46,14 @@ infixr 4 _,-_   -- the "cons" operator associates to the right
 --??--1.1-(2)-----------------------------------------------------------------
 
 vHead : {X : Set}{n : Nat} -> Vec X (suc n) -> X
-vHead xs = {!!}
+vHead (x ,- xs) = x
 
 vTail : {X : Set}{n : Nat} -> Vec X (suc n) -> Vec X n
-vTail xs = {!!}
+vTail (x ,- xs) = xs
 
 vHeadTailFact :  {X : Set}{n : Nat}(xs : Vec X (suc n)) ->
                  (vHead xs ,- vTail xs) == xs
-vHeadTailFact xs = {!!}                 
+vHeadTailFact (x ,- xs) = refl (x ,- xs)
 
 --??--------------------------------------------------------------------------
 
@@ -65,15 +65,21 @@ vHeadTailFact xs = {!!}
 --??--1.2-(2)-----------------------------------------------------------------
 
 _+V_ : {X : Set}{m n : Nat} -> Vec X m -> Vec X n -> Vec X (m +N n)
-xs +V ys = {!!}
+[] +V ys = ys
+(x ,- xs) +V ys = x ,- (xs +V ys)
 infixr 4 _+V_
 
 vChop : {X : Set}(m : Nat){n : Nat} -> Vec X (m +N n) -> Vec X m * Vec X n
-vChop m xs = {!!}
+vChop zero xs = [] , xs
+vChop (suc m) (x ,- xs) with vChop m xs
+... | tailStart , tailEnd = (x ,- tailStart) , tailEnd
 
 vChopAppendFact : {X : Set}{m n : Nat}(xs : Vec X m)(ys : Vec X n) ->
                   vChop m (xs +V ys) == (xs , ys)
-vChopAppendFact xs ys = {!!}
+vChopAppendFact [] ys = refl ([] , ys)
+vChopAppendFact {_} {suc m'} (x ,- xs) ys 
+  with vChop m' (xs +V ys) | vChopAppendFact xs ys 
+... | .(xs , ys)           | refl .(xs , ys) = refl ((x ,- xs) , ys)
 
 --??--------------------------------------------------------------------------
 
@@ -96,17 +102,28 @@ vChopAppendFact xs ys = {!!}
 --??--1.3-(2)-----------------------------------------------------------------
 
 vMap : {X Y : Set} -> (X -> Y) -> {n : Nat} -> Vec X n -> Vec Y n
-vMap f xs = {!!}
+vMap f [] = []
+vMap f (x ,- xs) = (f x) ,- (vMap f xs)
+
+cons-== : 
+  ∀ {X : Set} {x x' : X} {n : Nat} {xs xs' : Vec X n} 
+  -> x  == x' 
+  -> xs == xs' -> _==_ {Vec X (suc n)} (x ,- xs) (x' ,- xs')
+cons-== (refl x) (refl xs) = refl (x ,- xs)
+
 
 vMapIdFact : {X : Set}{f : X -> X}(feq : (x : X) -> f x == x) ->
              {n : Nat}(xs : Vec X n) -> vMap f xs == xs
-vMapIdFact feq xs = {!!}
+vMapIdFact feq [] = refl []
+vMapIdFact feq (x ,- xs) = cons-== (feq x) (vMapIdFact feq xs)
+
 
 vMapCpFact : {X Y Z : Set}{f : Y -> Z}{g : X -> Y}{h : X -> Z}
                (heq : (x : X) -> f (g x) == h x) ->
              {n : Nat}(xs : Vec X n) ->
                vMap f (vMap g xs) == vMap h xs
-vMapCpFact heq xs = {!!}
+vMapCpFact heq [] = refl []
+vMapCpFact heq (x ,- xs) = cons-== (heq x) (vMapCpFact heq xs)
 
 --??--------------------------------------------------------------------------
 
