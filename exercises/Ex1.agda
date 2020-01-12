@@ -141,7 +141,9 @@ vMapCpFact heq (x ,- xs) = cons-== (heq x) (vMapCpFact heq xs)
 vMap+VFact : {X Y : Set}(f : X -> Y) ->
              {m n : Nat}(xs : Vec X m)(xs' : Vec X n) ->
              vMap f (xs +V xs') == (vMap f xs +V vMap f xs')
-vMap+VFact f xs xs' = {!!}
+vMap+VFact f [] xs' = refl (vMap f xs')
+vMap+VFact f (x ,- xs) xs' with vMap+VFact f xs xs'
+...                            | p = cons-== (refl (f x)) p
 
 --??--------------------------------------------------------------------------
 
@@ -157,10 +159,12 @@ vMap+VFact f xs xs' = {!!}
 
 -- HINT: you will need to override the default invisibility of n to do this.
 vPure : {X : Set} -> X -> {n : Nat} -> Vec X n
-vPure x {n} = {!!}
+vPure x {zero} = []
+vPure x {suc n} = x ,- vPure x
 
 _$V_ : {X Y : Set}{n : Nat} -> Vec (X -> Y) n -> Vec X n -> Vec Y n
-fs $V xs = {!!}
+[] $V xs = []
+f ,- fs $V x ,- xs = (f x) ,- (fs $V xs)
 infixl 3 _$V_  -- "Application associates to the left,
                --  rather as we all did in the sixties." (Roger Hindley)
 
@@ -168,11 +172,11 @@ infixl 3 _$V_  -- "Application associates to the left,
 
 -- implement vMap again, but as a one-liner
 vec : {X Y : Set} -> (X -> Y) -> {n : Nat} -> Vec X n -> Vec Y n
-vec f xs = {!!}
+vec f xs = (vPure f) $V xs
 
 -- implement the operation which pairs up corresponding elements
 vZip : {X Y : Set}{n : Nat} -> Vec X n -> Vec Y n -> Vec (X * Y) n
-vZip xs ys = {!!}
+vZip xs ys = vPure _,_ $V xs $V ys
 
 --??--------------------------------------------------------------------------
 
@@ -190,20 +194,25 @@ vZip xs ys = {!!}
 
 vIdentity : {X : Set}{f : X -> X}(feq : (x : X) -> f x == x) ->
             {n : Nat}(xs : Vec X n) -> (vPure f $V xs) == xs
-vIdentity feq xs = {!!}
+vIdentity feq [] = refl []
+vIdentity feq (x ,- xs) = cons-== (feq x) (vIdentity feq xs)
 
 vHomomorphism : {X Y : Set}(f : X -> Y)(x : X) ->
                 {n : Nat} -> (vPure f $V vPure x) == vPure (f x) {n}
-vHomomorphism f x {n} = {!!}
+vHomomorphism f x {zero} = refl []
+vHomomorphism f x {suc n} with vHomomorphism f x {n} 
+...                           | ind = cons-== (refl (f x)) ind
 
 vInterchange : {X Y : Set}{n : Nat}(fs : Vec (X -> Y) n)(x : X) ->
                (fs $V vPure x) == (vPure (_$ x) $V fs)
-vInterchange fs x = {!!}
+vInterchange [] x = refl []
+vInterchange (f ,- fs) x = cons-== (refl (f x)) (vInterchange fs x)
 
 vComposition : {X Y Z : Set}{n : Nat}
                (fs : Vec (Y -> Z) n)(gs : Vec (X -> Y) n)(xs : Vec X n) ->
                (vPure _<<_ $V fs $V gs $V xs) == (fs $V (gs $V xs))
-vComposition fs gs xs = {!!}
+vComposition [] gs xs = refl []
+vComposition (f ,- fs) (g ,- gs) (x ,- xs) = cons-== (refl (f (g x))) (vComposition fs gs xs)
 
 --??--------------------------------------------------------------------------
 
@@ -226,25 +235,40 @@ data _<=_ : Nat -> Nat -> Set where
 
 --??--1.7-(1)-----------------------------------------------------------------
 
-all0<=4 : Vec (0 <= 4) {!!}
-all0<=4 = {!!}
+all0<=4 : Vec (0 <= 4) 1
+all0<=4 = (o' (o' (o' (o' oz)))) ,- []
 
-all1<=4 : Vec (1 <= 4) {!!}
-all1<=4 = {!!}
+all1<=4 : Vec (1 <= 4) 4
+all1<=4 = o' (o' (o' (os oz))) ,- o' (o' (os (o' oz))) ,- (o' (os (o' (o' oz))) ,- (os (o' (o' (o' oz))) ,- []))
 
-all2<=4 : Vec (2 <= 4) {!!}
-all2<=4 = {!!}
+all2<=4 : Vec (2 <= 4) 6
+all2<=4 = os (os (o' (o' oz))) ,- (os (o' (os (o' oz))) ,- (os (o' (o' (os oz))) ,- (o' (os (os (o' oz))) ,- (o' (os (o' (os oz))) ,- (o' (o' (os (os oz))) ,- [])))))
        
-all3<=4 : Vec (3 <= 4) {!!}
-all3<=4 = {!!}
+all3<=4 : Vec (3 <= 4) 4
+all3<=4 = o' (os (os (os oz))) ,- (os (o' (os (os oz))) ,- (os (os (o' (os oz))) ,- (os (os (os (o' oz))) ,- [])))
 
-all4<=4 : Vec (4 <= 4) {!!}
-all4<=4 = {!!}
+all4<=4 : Vec (4 <= 4) 1
+all4<=4 = os (os (os (os oz))) ,- []
 
 -- Prove the following. A massive case analysis "rant" is fine.
 
 no5<=4 : 5 <= 4 -> Zero
-no5<=4 th = {!!}
+no5<=4 (os (os (os (os ()))))
+no5<=4 (os (os (os (o' ()))))
+no5<=4 (os (os (o' (os ()))))
+no5<=4 (os (os (o' (o' ()))))
+no5<=4 (os (o' (os (os ()))))
+no5<=4 (os (o' (os (o' ()))))
+no5<=4 (os (o' (o' (os ()))))
+no5<=4 (os (o' (o' (o' ()))))
+no5<=4 (o' (os (os (os ()))))
+no5<=4 (o' (os (os (o' ()))))
+no5<=4 (o' (os (o' (os ()))))
+no5<=4 (o' (os (o' (o' ()))))
+no5<=4 (o' (o' (os (os ()))))
+no5<=4 (o' (o' (os (o' ()))))
+no5<=4 (o' (o' (o' (os ()))))
+no5<=4 (o' (o' (o' (o' ()))))
 
 --??--------------------------------------------------------------------------
 
@@ -261,14 +285,19 @@ no5<=4 th = {!!}
 
 _<?=_ : {X : Set}{n m : Nat} -> n <= m -> Vec X m
                      -> Vec X n
-th <?= xs = {!!}
+oz <?= [] = []
+os th <?= (x ,- xs) = x ,- (th <?= xs)
+o' th <?= (x ,- xs) = th <?= xs
 
 -- it shouldn't matter whether you map then select or select then map
 
 vMap<?=Fact : {X Y : Set}(f : X -> Y)
               {n m : Nat}(th : n <= m)(xs : Vec X m) ->
               vMap f (th <?= xs) == (th <?= vMap f xs)
-vMap<?=Fact f th xs = {!!}
+vMap<?=Fact f oz [] = refl []
+vMap<?=Fact f (os th) (x ,- xs) = cons-== (refl (f x)) (vMap<?=Fact f th xs)
+vMap<?=Fact f (o' th) (x ,- xs) with vMap<?=Fact f th xs
+...                                 | ind = ind
 
 --??--------------------------------------------------------------------------
 
