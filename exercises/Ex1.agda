@@ -311,10 +311,12 @@ vMap<?=Fact f (o' th) (x ,- xs) with vMap<?=Fact f th xs
 --??--1.9-(1)-----------------------------------------------------------------
 
 oi : {n : Nat} -> n <= n
-oi {n}  = {!!}
+oi {zero} = oz
+oi {suc n} = os oi
 
 oe : {n : Nat} -> 0 <= n
-oe {n}  = {!!}
+oe {zero} = oz
+oe {suc n} = o' oe
 
 --??--------------------------------------------------------------------------
 
@@ -324,7 +326,8 @@ oe {n}  = {!!}
 --??--1.10-(1)----------------------------------------------------------------
 
 oeUnique : {n : Nat}(th : 0 <= n) -> th == oe
-oeUnique i = {!!}
+oeUnique oz = refl oz
+oeUnique (o' i) = (refl o') =$= (oeUnique i)
 
 --??--------------------------------------------------------------------------
 
@@ -338,10 +341,21 @@ oeUnique i = {!!}
 --??--1.11-(3)----------------------------------------------------------------
 
 oTooBig : {n m : Nat} -> n >= m -> suc n <= m -> Zero
-oTooBig {n} {m} n>=m th = {!!}
+oTooBig {zero} {zero} n>=m ()
+oTooBig {zero} {suc m} () th
+oTooBig {suc n} {suc m} n>=m (os th) = oTooBig n>=m th
+oTooBig {suc n} {suc m} n>=m (o' th) = oTooBig n>=m (dec th)
+  where
+    dec : ∀ {n m} -> suc (suc n) <= m -> suc n <= m
+    dec (os n<=m) = o' n<=m
+    dec (o' n<=m) = o' (dec n<=m)
+
 
 oiUnique : {n : Nat}(th : n <= n) -> th == oi
-oiUnique th = {!!}
+oiUnique oz = refl oz
+oiUnique (os th) = (refl os) =$= (oiUnique th)
+oiUnique {n} (o' th) with oTooBig (refl->= n) th 
+... | ()
 
 --??--------------------------------------------------------------------------
 
@@ -351,7 +365,8 @@ oiUnique th = {!!}
 --??--1.12-(1)----------------------------------------------------------------
 
 id-<?= : {X : Set}{n : Nat}(xs : Vec X n) -> (oi <?= xs) == xs
-id-<?= xs = {!!}
+id-<?= [] = refl []
+id-<?= (x ,- xs) = cons-== (refl x) (id-<?= xs)
 
 --??--------------------------------------------------------------------------
 
@@ -369,12 +384,21 @@ id-<?= xs = {!!}
 --??--1.13-(3)----------------------------------------------------------------
 
 _o>>_ : {p n m : Nat} -> p <= n -> n <= m -> p <= m
-th o>> th' = {!!}
+th o>> o' th' = o' (th o>> th')
+os th o>> os th' = os (th o>> th')
+o' th o>> os th' = o' (th o>> th')
+oz o>> oz = oz
+
 
 cp-<?= : {p n m : Nat}(th : p <= n)(th' : n <= m) ->
          {X : Set}(xs : Vec X m) ->
          ((th o>> th') <?= xs) == (th <?= (th' <?= xs))
-cp-<?= th th' xs = {!!}
+cp-<?= oz oz [] = refl []
+cp-<?= (os th) (os th') (x ,- xs) = cons-== (refl x) (cp-<?= th th' xs)
+cp-<?= (o' th) (os th') (x ,- xs) = cp-<?= th th' xs
+cp-<?= oz      (o' th') (x ,- xs) = cp-<?= oz th' xs
+cp-<?= (os th) (o' th') (x ,- xs) = cp-<?= (os th) th' xs
+cp-<?= (o' th) (o' th') (x ,- xs) = cp-<?= (o' th) th' xs
 
 --??--------------------------------------------------------------------------
 
@@ -386,10 +410,14 @@ cp-<?= th th' xs = {!!}
 --??--1.14-(3)----------------------------------------------------------------
 
 idThen-o>> : {n m : Nat}(th : n <= m) -> (oi o>> th) == th
-idThen-o>> th = {!!}
+idThen-o>> oz = refl oz
+idThen-o>> (os th) = refl os =$= (idThen-o>> th)
+idThen-o>> (o' th) = refl o' =$= (idThen-o>> th)
 
 idAfter-o>> : {n m : Nat}(th : n <= m) -> (th o>> oi) == th
-idAfter-o>> th = {!!}
+idAfter-o>> oz = refl oz
+idAfter-o>> (os th) = refl os =$= (idAfter-o>> th)
+idAfter-o>> (o' th) = refl o' =$= (idAfter-o>> th)
 
 assoc-o>> : {q p n m : Nat}(th0 : q <= p)(th1 : p <= n)(th2 : n <= m) ->
             ((th0 o>> th1) o>> th2) == (th0 o>> (th1 o>> th2))
@@ -416,16 +444,29 @@ vProject xs i = vHead (i <?= xs)
 
 -- HINT: composition of functions
 vTabulate : {n : Nat}{X : Set} -> (1 <= n -> X) -> Vec X n
-vTabulate {n} f = {!!}
+vTabulate {zero} f  = []
+vTabulate {suc n} f = f (os oe) ,- (vTabulate (o' >> f))
+
+vTabFact : ∀ {n : Nat} {X : Set} -> (f : 1 <= suc n -> X) -> vHead (vTabulate f) == f (os oe)
+vTabFact {n} f with vTabulate f 
+... | f1 ,- fs = refl (f (os oe))
+
 
 -- This should be easy if vTabulate is correct.
 vTabulateProjections : {n : Nat}{X : Set}(xs : Vec X n) ->
                        vTabulate (vProject xs) == xs
-vTabulateProjections xs = {!!}
+vTabulateProjections [] = refl []
+vTabulateProjections (x ,- xs) with vProject (x ,- xs) (os oe)
+...                               | ind rewrite vTabulateProjections xs = refl (ind ,- xs)
 
 -- HINT: oeUnique
 vProjectFromTable : {n : Nat}{X : Set}(f : 1 <= n -> X)(i : 1 <= n) ->
                     vProject (vTabulate f) i == f i
-vProjectFromTable f i = {!!}
+vProjectFromTable {suc n} f (os i) rewrite oeUnique i = refl (f (os oe))
+vProjectFromTable {suc n} f (o' i) = vProjectFromTable (o' >> f) i
+
+
+
+
 
 --??--------------------------------------------------------------------------
