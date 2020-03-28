@@ -419,9 +419,23 @@ idAfter-o>> oz = refl oz
 idAfter-o>> (os th) = refl os =$= (idAfter-o>> th)
 idAfter-o>> (o' th) = refl o' =$= (idAfter-o>> th)
 
+-- o'-commute : {n m p : Nat} -> (th1 : m <= n) (th2 : suc n <= p) -> (os th1 o>> th2) == (os (th1 o>> th2))
+-- o'-commute = ?
+
 assoc-o>> : {q p n m : Nat}(th0 : q <= p)(th1 : p <= n)(th2 : n <= m) ->
             ((th0 o>> th1) o>> th2) == (th0 o>> (th1 o>> th2))
-assoc-o>> th0 th1 th2 = {!!}
+assoc-o>> th0 th1 (o' th2) = refl o' =$= assoc-o>> th0 th1 th2
+assoc-o>> (os th0) (os th1) (os th2) = refl os =$= assoc-o>> th0 th1 th2
+assoc-o>> (o' th0) (os th1) (os th2) = refl o' =$= assoc-o>> th0 th1 th2
+assoc-o>> oz (o' th1) (os th2) = refl o' =$= assoc-o>> oz th1 th2
+assoc-o>> (os th0) (o' th1) (os th2) rewrite assoc-o>> (os th0) th1 th2 = refl o' =$= refl (os th0 o>> (th1 o>> th2))
+assoc-o>> (o' th0) (o' th1) (os th2) rewrite assoc-o>> (o' th0) th1 th2 = refl o' =$= refl (o' th0 o>> (th1 o>> th2))
+assoc-o>> oz oz oz = refl oz
+
+
+
+
+
 
 --??--------------------------------------------------------------------------
 
