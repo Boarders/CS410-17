@@ -42,11 +42,11 @@ OPE = record
   { Obj          = Nat    -- ...has numbers as objects...
   ; _~>_         = _<=_   -- ...and "thinnings" as arrows.
                           -- Now, assemble the rest of the components.
-  ; id~>         = {!!}
-  ; _>~>_        = {!!}
-  ; law-id~>>~>  = {!!}
-  ; law->~>id~>  = {!!}
-  ; law->~>>~>   = {!!}
+  ; id~>         = oi
+  ; _>~>_        = _o>>_
+  ; law-id~>>~>  = idThen-o>>
+  ; law->~>id~>  = idAfter-o>>
+  ; law->~>>~>   = assoc-o>>
   }
 
 VEC : Nat -> SET => SET                -- Vectors of length n...
@@ -54,8 +54,8 @@ VEC n = record
   { F-Obj       = \ X -> Vec X n       -- ...give a functor from SET to SET...
   ; F-map       = \ f xs -> vMap f xs  -- ...doing vMap to arrows.
                                        -- Now prove the laws.
-  ; F-map-id~>  = extensionality \ xs -> {!!}
-  ; F-map->~>   = \ f g -> extensionality \ xs -> {!!}
+  ; F-map-id~>  = extensionality \ xs -> vMapIdFact refl xs
+  ; F-map->~>   = \ f g -> extensionality \ xs -> sym (vMapCpFact (\ x -> refl (g (f x))) xs)
   }
 
 Op : Category -> Category             -- Every category has an opposite...
@@ -63,19 +63,19 @@ Op C = record
   { Obj          = Obj                -- ...with the same objects, but...  
   ; _~>_         = \ S T -> T ~> S    -- ...arrows that go backwards!
                                       -- Now, find the rest!
-  ; id~>         = {!!}
-  ; _>~>_        = {!!}
-  ; law-id~>>~>  = {!!}
-  ; law->~>id~>  = {!!}
-  ; law->~>>~>   = {!!}
+  ; id~>         = id~>
+  ; _>~>_        = \ arr1 arr2 -> arr2 >~> arr1
+  ; law-id~>>~>  = law->~>id~> 
+  ; law->~>id~>  = law-id~>>~>
+  ; law->~>>~>   = \ h g f -> sym (law->~>>~> f g h)
   } where open Category C
 
 CHOOSE : Set -> OPE => Op SET    -- Show that thinnings from n to m...
 CHOOSE X = record                -- ...act by selection...
   { F-Obj       = Vec X          -- ...to cut vectors down from m to n.
-  ; F-map       = {!!}
-  ; F-map-id~>  = extensionality {!!}
-  ; F-map->~>   = \ f g -> extensionality {!!}
+  ; F-map       = _<?=_
+  ; F-map-id~>  = extensionality id-<?=
+  ; F-map->~>   = \ f g -> extensionality (cp-<?= f g)
   }
 
 --??--------------------------------------------------------------------------
@@ -108,14 +108,21 @@ LIST-MONOID : Set -> Category
 LIST-MONOID X =            -- Show that _+L_ is the operation of a monoid,...
   record
   { Obj          = One     -- ... i.e., a category with one object.
-  ; _~>_         = {!!}
-  ; id~>         = {!!}
-  ; _>~>_        = {!!}
-  ; law-id~>>~>  = {!!}
-  ; law->~>id~>  = {!!}
-  ; law->~>>~>   = {!!}
+  ; _~>_         = \ _ _  -> List X
+  ; id~>         = []
+  ; _>~>_        = _+L_
+  ; law-id~>>~>  = λ {S} {T} → refl
+  ; law->~>id~>  = λ {S} {T} → +L-identity
+  ; law->~>>~>   = λ {Q} {R} {S} {T} → +L-assoc
   } where
   -- useful helper proofs (lemmas) go here
+  +L-identity : {X : Set} -> (xs : List X) -> (xs +L []) == xs
+  +L-identity [] = refl []
+  +L-identity (x ,- xs) rewrite +L-identity xs = refl (x ,- xs)
+
+  +L-assoc : {X : Set} -> (xs ys zs : List X) -> ((xs +L ys) +L zs) == (xs +L (ys +L zs))
+  +L-assoc [] ys zs = refl (ys +L zs)
+  +L-assoc (x ,- xs) ys zs rewrite +L-assoc xs ys zs = refl (x ,- xs +L ys +L zs)
 
 --??--------------------------------------------------------------------------
 
@@ -126,15 +133,24 @@ LIST-MONOID X =            -- Show that _+L_ is the operation of a monoid,...
 --??--2.3-(3)-----------------------------------------------------------------
 
 list : {X Y : Set} -> (X -> Y) -> List X -> List Y
-list f xs = {!!}
+list f [] = []
+list f (x ,- xs) = f x ,- list f xs
 
 LIST : SET => SET
 LIST = record
   { F-Obj       = List
   ; F-map       = list
-  ; F-map-id~>  = extensionality {!!}
-  ; F-map->~>   = \ f g -> extensionality {!!}
+  ; F-map-id~>  = extensionality \ xs -> list-id xs
+  ; F-map->~>   = \ f g -> extensionality \ xs -> list-cp f g xs
   } where
+  list-id : {X : Set} -> (xs : List X) -> list id xs == xs
+  list-id [] = refl []
+  list-id (x ,- xs) rewrite list-id xs = refl (x ,- xs)
+
+  list-cp : {X Y Z : Set} -> (f : X -> Y) (g : Y -> Z) -> (xs : List X)
+         -> (list (g << f) xs) == (list g (list f xs))
+  list-cp f g [] = refl []
+  list-cp f g (x ,- xs) rewrite list-cp f g xs = refl (g (f x) ,- list g (list f xs))
   -- useful helper proofs (lemmas) go here
 
 --??--------------------------------------------------------------------------
