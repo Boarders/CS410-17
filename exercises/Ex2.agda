@@ -104,6 +104,15 @@ infixr 4 _+L_
 
 --??--2.2-(3)-----------------------------------------------------------------
 
++L-identity : {X : Set} -> (xs : List X) -> (xs +L []) == xs
++L-identity [] = refl []
++L-identity (x ,- xs) rewrite +L-identity xs = refl (x ,- xs)
+
++L-assoc : {X : Set} -> (xs ys zs : List X) -> ((xs +L ys) +L zs) == (xs +L (ys +L zs))
++L-assoc [] ys zs = refl (ys +L zs)
++L-assoc (x ,- xs) ys zs rewrite +L-assoc xs ys zs = refl (x ,- xs +L ys +L zs)
+
+
 LIST-MONOID : Set -> Category
 LIST-MONOID X =            -- Show that _+L_ is the operation of a monoid,...
   record
@@ -116,13 +125,6 @@ LIST-MONOID X =            -- Show that _+L_ is the operation of a monoid,...
   ; law->~>>~>   = λ {Q} {R} {S} {T} → +L-assoc
   } where
   -- useful helper proofs (lemmas) go here
-  +L-identity : {X : Set} -> (xs : List X) -> (xs +L []) == xs
-  +L-identity [] = refl []
-  +L-identity (x ,- xs) rewrite +L-identity xs = refl (x ,- xs)
-
-  +L-assoc : {X : Set} -> (xs ys zs : List X) -> ((xs +L ys) +L zs) == (xs +L (ys +L zs))
-  +L-assoc [] ys zs = refl (ys +L zs)
-  +L-assoc (x ,- xs) ys zs rewrite +L-assoc xs ys zs = refl (x ,- xs +L ys +L zs)
 
 --??--------------------------------------------------------------------------
 
@@ -164,10 +166,14 @@ LIST+L : {X Y : Set}(f : X -> Y) -> LIST-MONOID X => LIST-MONOID Y
 LIST+L {X}{Y} f = record
   { F-Obj       = id
   ; F-map       = list f -- this yellow will go once LIST-MONOID has arrows!
-  ; F-map-id~>  = {!!}
-  ; F-map->~>   = {!!}
+  ; F-map-id~>  = λ {T} → refl []
+  ; F-map->~>   = \ xs ys -> map-homo xs ys _
   } where
-  -- useful helper proofs (lemmas) go here
+  map-homo : ∀ {X Y : Set} (xs ys : List X) -> (f : X → Y)
+       -> list f (xs +L ys) == (list f xs +L list f ys)
+  map-homo [] ys f = refl (list f ys)
+  map-homo (x ,- xs) ys f rewrite map-homo xs ys f = refl (f x ,- list f xs +L list f ys)
+
 
 
 --??--------------------------------------------------------------------------
@@ -180,7 +186,7 @@ LIST+L {X}{Y} f = record
 SINGLE : ID ~~> LIST
 SINGLE = record
   { xf          = \ x -> x ,- []      -- turn a value into a singleton list
-  ; naturality  = \ f -> {!!}
+  ; naturality  = \ f -> refl (λ x → f x ,- [])
   }
 
 --??--------------------------------------------------------------------------
@@ -198,13 +204,19 @@ SINGLE = record
 --??--2.6-(3)-----------------------------------------------------------------
 
 concat : {X : Set} -> List (List X) -> List X
-concat xss = {!!}
+concat [] = []
+concat (xss ,- xss') = xss +L (concat xss')
 
 CONCAT : (LIST >=> LIST) ~~> LIST
 CONCAT = record
   { xf          = concat
-  ; naturality  = {!!}
+  ; naturality  = \ f -> extensionality (\ xs -> help f xs)
   } where
+  help : ∀ {X} {Y} (f : X → Y) (xs : List (List X)) →
+       concat (list (list f) xs) == list f (concat xs)
+  help f [] = refl []
+  help f (xs ,- xs') rewrite help f xs' |  (_=>_.F-map->~> (LIST+L f) xs (concat xs')) 
+    = refl (list f xs +L list f (concat xs'))
   -- useful helper proofs (lemmas) go here
 
 --??--------------------------------------------------------------------------
@@ -221,10 +233,34 @@ module LIST-MONAD where
   ListMonad = record
     { unit      = SINGLE
     ; mult      = CONCAT
-    ; unitMult  = {!!}
-    ; multUnit  = {!!}
-    ; multMult  = {!!}
+    ; unitMult  = \ {X} -> extensionality \ xs -> +L-identity xs
+    ; multUnit  = \ {X} -> extensionality \ xs -> concat-+L-id xs
+    ; multMult  = \ {X} -> extensionality \ xs -> concat-assoc xs 
     } where
+    concat-+L-id : ∀ {X} (xs : List X) → concat (list (λ y → y ,- []) xs) == xs
+    concat-+L-id [] = refl []
+    concat-+L-id (x ,- xs) rewrite concat-+L-id xs = refl (x ,- xs)
+
+    concat-homo : ∀ {X} (xs ys : List (List X)) ->
+      concat (xs +L ys) == (concat xs +L concat ys)
+    concat-homo [] ys = refl (concat ys)
+    concat-homo (xs ,- xss) ys 
+      rewrite concat-homo xss ys | +L-assoc xs (concat xss) (concat ys) = 
+        refl (xs +L concat xss +L concat ys)
+
+    concat-assoc : ∀ {X} (xs : List (List (List X))) → 
+      concat (concat xs) == concat (list concat xs)
+    concat-assoc [] = refl []
+    concat-assoc ([] ,- xss) rewrite concat-assoc xss = refl (concat (list concat xss))
+    concat-assoc ((xs ,- xss) ,- xsss) 
+      rewrite concat-homo xss (concat xsss) | sym (concat-assoc xsss)
+            | +L-assoc xs (concat xss) (concat (concat xsss))
+        = refl (xs +L concat xss +L concat (concat xsss))
+
+
+
+    
+
     -- useful helper proofs (lemmas) go here
 
 -- open LIST-MONAD
