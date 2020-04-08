@@ -353,15 +353,33 @@ VecCopy X n = All (\ _ -> X) (copy n)
 
 all : {X : Set}{S T : X -> Set} ->
       [ S -:> T ] -> [ All S -:> All T ]
-all f xs ss = {!!}
+all f [] ss = <>
+all f (x ,- xs) (s[x] , p[s[xs]]) = f x s[x] , all f xs p[s[xs]]
+
+pair-== : ∀ {X} {Y} (x1 x2 : X) -> (y1 y2 : Y) -> (x1 == x2) -> (y1 == y2) -> (x1 , y1) == (x2 , y2)
+pair-== x1  .x1 y1 .y1 (refl .x1) (refl .y1) = refl (x1 , y1)
+
+
 
 ALL : (X : Set) -> (X ->SET) => (List X ->SET)
 ALL X = record
   { F-Obj      = All
   ; F-map      = all
-  ; F-map-id~> = {!!}
-  ; F-map->~>  = {!!}
+  ; F-map-id~> = extensionality \ xs -> extensionality \ t[xs] -> all-id xs t[xs]
+  ; F-map->~>  = \f g -> extensionality \ xs -> extensionality λ t[xs] → all-comp f g xs t[xs]
   } where
+  all-id : ∀ {X} {T : X → Set} (xs : List X) (t[xs] : All T xs) →
+         all (λ i x → x) xs t[xs] == t[xs]
+  all-id [] <> = refl <>
+  all-id (x ,- xs) (t[x] , t[xs]) rewrite all-id xs t[xs] = refl (t[x] , t[xs])
+
+  all-comp : ∀ {X} {R S T : X → Set} (f : [ R -:> S ])
+             (g : [ S -:> T ]) (xs : List X) (t[xs] : All R xs) →
+           all (λ i x → g i (f i x)) xs t[xs] == all g xs (all f xs t[xs])
+  all-comp f g [] <> = refl <>
+  all-comp f g (x ,- xs) (t[x] , t[xs]) rewrite all-comp f g xs t[xs] 
+    = refl (g x (f x t[x]) , all g xs (all f xs t[xs]))
+        
   -- useful helper facts go here
 
 --??--------------------------------------------------------------------------
@@ -450,19 +468,32 @@ footprints = (4 , 6 , refl 10) 8>< strVec "foot"
 
 -- Using what you already built for ALL, show that every Cutting C gives us
 -- a functor between categories of indexed sets.
+_$=_ : {S T : Set}{x y : S} (f : (x : S) -> T) -> (x == y) -> f x == (f y)
+f $= pf = (refl f) =$= pf
 
 CUTTING : {I O : Set}(C : I |> O) -> (I ->SET) => (O ->SET)
 CUTTING {I}{O} C = record
   { F-Obj = Cutting C
-  ; F-map = {!!}
-  ; F-map-id~> = extensionality \ o -> extensionality \ { (c 8>< ps) ->
-     {!!} }
+  ; F-map = \ [s:->t] -> cut-map [s:->t]
+  ; F-map-id~> = 
+      extensionality \ o 
+   -> extensionality \ 
+        {(cut 8>< pieces) → (cut 8><_) $= (F-map-id~> =$ (inners cut) =$ pieces) }
   ; F-map->~> = \ f g ->
-     extensionality \ o -> extensionality \ { (c 8>< ps) ->
-     {!!} } 
+     extensionality \ o 
+  -> extensionality 
+       \ { (c 8>< ps) -> (c 8><_) $= (F-map->~> f g =$ _ =$ ps) } 
   } where
+  cut-map : ∀ {I} {S T : I → Set} →
+          ((i : I) → S i → T i) →
+          ∀ {O} {C : I |> O} (i : O) → Cutting C S i → Cutting C T i
+  cut-map {I} [s:->t] o (cut 8>< pieces) = cut 8>< F-map [s:->t] _ pieces
+    where
+      open _=>_ (ALL I)
+
   open _|>_ C
   open _=>_ (ALL I)
+
 
 --??--------------------------------------------------------------------------
 
